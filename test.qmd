@@ -1,0 +1,44 @@
+---
+title: "Untitled"
+date: last-modified
+date-format: "dddd, DD/MM/YYYY"
+format: 
+  html:
+    theme: flatly
+    code-fold: true
+    code-copy: hover
+    code-overflow: wrap
+    code-tools: true
+    df-print: paged
+    default-image-extension: svg
+    embed-resources: true
+    page-layout: full
+    reference-location: margin
+    title-block-banner: true
+    title-block-style: default
+    fontsize: .9em
+    monofont: 'Fira Code'
+execute: 
+  warning: false
+number-sections: true
+toc: true
+fig-dpi: 320
+dpi: 320
+---
+
+
+# Setup
+
+```{r}
+#| label: setup
+
+pacman::p_load(tidyverse, bibliometrix, janitor, stringi, 
+               gtsummary, kableExtra)
+
+
+bibds_wos <- convert2df("biblio.bib", dbsource = "wos", 
+                        format = "bibtex")
+
+
+```
+
