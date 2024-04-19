@@ -40,7 +40,7 @@ pacman::p_load(tidyverse, bibliometrix, janitor, stringi,
 # Import Database and Export 
 
 ```{r}
-bibds_wos <- convert2df("240418_php.bib", dbsource = "wos", 
+bibds_wost <- convert2df("240418_php.bib", dbsource = "wos", 
                         format = "bibtex") %>% 
   mutate(id = row_number(), 
          .before = 1) %>% 
@@ -49,7 +49,7 @@ bibds_wos <- convert2df("240418_php.bib", dbsource = "wos",
          .after = id) %>% 
   ungroup()
 
-#write_csv(bibds_wos, "bibds_wos.csv")
+#write_csv(bibds_wost, "bibds_wost.csv")
 ```
 
 # Open Refine
@@ -69,17 +69,34 @@ bibds_wos <- convert2df("240418_php.bib", dbsource = "wos",
 # Import OpenRefine
 
 ```{r}
-bibds_wos_por <- read_csv("bibds_wos_postor.csv")
+bibds_wos_port <- read_csv("bibds_wos_postor.csv")
 
-bibds_wos_por
+bibds_wos_port
 ```
+
+
 
 # Bibliometrix
 
 ```{r}
-biblioAnalysis(bibds_wos_por) %>% 
+biblioAnalysis(bibds_wos_port) %>% 
   summary(k = 20)
 ```
 
+```{r}
+metaTagExtraction(bibds_wost, Field = "AU_CO", sep = ";")
+```
 
+
+
+```{r}
+fieldByYear(bibds_wost, field = "DE", graph = T)
+```
+
+
+
+```{r}
+biblioNetwork(bibds_wost, analysis = "co-occurrences", 
+                             network = "keywords", sep = ";") 
+```
 

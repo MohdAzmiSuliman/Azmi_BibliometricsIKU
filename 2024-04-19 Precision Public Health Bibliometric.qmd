@@ -1,0 +1,276 @@
+---
+title: "Bibliometric Public Health Precision"
+date: last-modified
+date-format: "dddd, DD/MM/YYYY"
+format: 
+  html:
+    theme: flatly
+    code-fold: true
+    code-copy: hover
+    code-overflow: wrap
+    code-tools: true
+    df-print: paged
+    default-image-extension: svg
+    embed-resources: true
+    page-layout: full
+    reference-location: margin
+    title-block-banner: true
+    title-block-style: default
+    fontsize: .9em
+    monofont: 'Fira Code'
+execute: 
+  warning: false
+number-sections: true
+toc: true
+fig-dpi: 320
+dpi: 320
+---
+
+# Setup
+
+```{r}
+#| label: setup
+
+pacman::p_load(tidyverse, 
+               bibliometrix, 
+               #janitor, 
+               stringi, 
+               #gtsummary, 
+               #kableExtra, 
+               summarytools)
+
+```
+
+# Import Database and Export
+
+## Search Criteria
+
+-   Database: Web of Science Core Collection, which include
+    -   A&HCI: Arts & Humanities Citation Index
+    -   ESCI: Emerging Sources Citation Index
+    -   SCI-EXPANDED: Science Citation Index Expanded
+    -   SSCI: Social Sciences Citation Index
+-   Date Access: 19/04/2024
+-   Search Term: TS=("public health precision") OR TS=("precision public health")
+    -   TS: Topic, which include Title, Abstract and Author's Keywords
+    -   TI: Title
+    -   link: https://www.webofscience.com/wos/woscc/summary/4e07b2e9-e0db-4bff-ac3d-f09a49adaed7-e0a53927/relevance/1
+
+## Import Database
+
+```{r}
+bibds_wos0_240419 <- convert2df("240419_php.bib", 
+                                dbsource = "wos", 
+                                format = "bibtex") 
+```
+
+## Explore Dataset
+
+Duplicate Title
+
+```{r}
+bibds_wos0_240419 %>% 
+  count(TI) %>% 
+  filter(n > 1)
+```
+
+Type of Document
+
+```{r}
+bibds_wos0_240419 %>% 
+  freq(DT)
+
+bibds_wos0_240419 %>% 
+  filter(DT == "REVIEW; BOOK CHAPTER") %>% 
+  select(TI, DI)
+
+ex_dt <- c("CORRECTION", 
+           "EDITORIAL MATERIAL", 
+           "LETTER")
+```
+
+## Data Cleaning
+
+1.  remove duplicate
+2.  remove PY = 2024
+2.  remove unwanted document type (correction, editorial material, letter)
+3.  add id and idR
+4.  write to csv file for further cleaning in OpenRefine
+
+```{r}
+set.seed(4352)
+
+bibds_wos1_240419 <- bibds_wos0_240419 %>% 
+  distinct(TI, .keep_all = T) %>% 
+  filter(PY != 2024, 
+         !DT %in% ex_dt) %>%
+  mutate(id = row_number(), 
+         .before = 1) %>% 
+  rowwise() %>%
+  mutate(idR = stri_rand_strings(1, 4), 
+         .after = id) %>% 
+  ungroup()
+
+#write_csv(bibds_wos1_240419, "240419_bibds_wos1.csv")
+```
+
+## Open Refine
+
+-   import dataset (project name: 2024_BiblioIKU_05)
+-   split AU
+-   cluster and edit AU
+-   Join AU
+-   split DE (SARS-CoV-2 to COVID-19)
+-   cluster and edit DE
+-   join DE
+-   split ID
+-   cluster and edit ID
+-   join ID
+-   export to 240419_bibds_wos_postor.csv
+
+## Import post OpenRefine
+
+```{r}
+bibds_wos_por <- read_csv("240419_bibds_wos_postor.csv")
+
+bibds_wos_por
+```
+
+# Analysis
+
+## Descriptive
+
+```{r}
+biblioAnalysis(bibds_wos_por) %>% 
+  summary(k = 20)
+```
+
+
+```{r}
+biblioAnalysis(bibds_wos_por) %>% 
+  plot()
+```
+
+
+
+```{r}
+bibds_wos_por %>% filter(PY == 2012) %>% select(TI, DI)
+```
+
+
+
+## Production
+
+```{r}
+bibds_wos_por %>% 
+  count(PY)
+
+bibds_wos_por %>%
+  count(PY) %>%
+  ggplot(aes(x = PY, y = n)) + 
+  geom_col() + 
+  scale_x_continuous(breaks = seq(2000, 2030, 1), 
+                     name = "Year") + 
+  scale_y_continuous(breaks = seq(0, 50, 5), 
+                     name = "Number of Publication") +
+  theme_bw()
+```
+
+
+## Influential
+
+### Author
+
+```{r}
+bibds_wos_por %>% 
+  select(AU) %>% 
+  separate_longer_delim(AU, ";") %>% 
+  count(AU) %>% 
+  arrange(desc(n), AU) %>%
+  filter(n > 4) %>% 
+  mutate(Rank = row_number(), .before = 1)
+```
+
+### Articles
+
+```{r}
+bibds_wos_por %>% 
+  select(TI, TC, DI) %>% 
+  arrange(desc(TC)) %>% 
+  mutate(Rank = row_number(), .before = 1) %>% 
+  filter(Rank < 11)
+```
+
+```{r}
+bibds_wos_por %>% 
+  select(TI, DI, PY, TC) %>% 
+  mutate(dur = 2024 - PY + 1,
+         tcy = TC / dur) %>% 
+  arrange(desc(tcy)) %>% 
+  mutate(Rank = row_number(), .before = 1) %>% 
+  filter(Rank < 11)
+```
+
+
+
+### Journal
+
+```{r}
+bibds_wos_por %>% 
+  count(SO) %>% 
+  arrange(desc(n), SO) %>% 
+  mutate(Rank = row_number(), .before = 1) %>% 
+  filter(n > 2) 
+
+```
+
+
+```{r}
+bibds_wos_por %>% 
+  count(SO) %>% 
+  arrange(desc(n), SO) %>% 
+  mutate(sum_n = cumsum(n)) %>% 
+  mutate(Rank = row_number(), .before = 1) %>% 
+  filter(n > 2)
+```
+
+
+### Keywords
+
+```{r}
+bibds_wos_por %>% 
+  select(DE) %>% 
+  separate_longer_delim(DE, ";") %>% 
+  count(DE) %>% 
+  arrange(desc(n), DE) %>% 
+  filter(n > 6) %>% 
+  mutate(Rank = row_number(), .before = 1)
+
+
+```
+
+```{r}
+bibds_wos_por %>% 
+  select(ID) %>%
+  separate_longer_delim(ID, ";") %>%
+  count(ID) %>%
+  arrange(desc(n), ID) %>% 
+  filter(n > 7) %>% 
+  mutate(Rank = row_number(), .before = 1)
+```
+
+## Trend
+
+### Extra Meta 
+
+```{r}
+bibds_wos_MTE <- metaTagExtraction(bibds_wos_por, Field = "AU_CO", sep = ";")
+```
+
+
+### Author
+
+```{r}
+authorProdOverTime(bibds_wos_por, k = 10, graph = T)
+```
+

@@ -1,0 +1,186 @@
+---
+title: "Mapping the Landscape of Precision Public Health: A Bibliometric Analysis of Influential Works and Key Contributors" 
+author:
+  - name: Mohd Azmi Bin Suliman
+    orcid: 0000-0002-2125-3811
+    affiliation: Institut Kesihatan Umum
+  - name: Tham Sin Wan
+    orcid: 0000-0002-5925-3200
+    affiliation: Institut Kesihatan Umum
+date: last-modified
+date-format: "dddd, DD/MM/YYYY"
+format:
+  docx:
+    df-print: kable
+    toc: true
+    dpi: 320
+  html:
+    theme: flatly
+    code-fold: show
+    code-copy: hover
+    code-overflow: wrap
+    code-tools: true
+    df-print: kable
+    embed-resources: true
+    page-layout: full
+    reference-location: margin
+    title-block-banner: true
+    title-block-style: default
+    fontsize: .9em
+    monofont: 'Fira Code'
+---
+
+# Setup
+
+## Library & Setup
+
+```{r}
+pacman::p_load(tidyverse, bibliometrix, stringi, 
+               kableExtra, summarytools)
+
+bibds_wos_por <- read_csv("240419_bibds_wos_postor.csv")
+```
+
+# Introduction
+
+# Methodology
+
+## Data Source & Inclusion Criteria
+
+-   Database: Web of Science Core Collection, which include
+    -   A&HCI: Arts & Humanities Citation Index
+    -   ESCI: Emerging Sources Citation Index
+    -   SCI-EXPANDED: Science Citation Index Expanded
+    -   SSCI: Social Sciences Citation Index
+-   Date Access: 19/04/2024
+-   Search Term: TS=("public health precision") OR TS=("precision public health")
+    -   TS: Topic, which include Title, Abstract and Author's Keywords
+    -   TI: Title
+    -   link: https://www.webofscience.com/wos/woscc/summary/4e07b2e9-e0db-4bff-ac3d-f09a49adaed7-e0a53927/relevance/1
+
+## Data Analysis
+
+-   Software
+    -   R
+    -   RStudio
+    -   Bibliometrix
+-   Parameters
+    -   Production by Year
+    -   Influential Articles
+    -   Influential Authors
+    -   Influential Journals
+    -   Influential Keywords
+
+# Results
+
+## Production by Year
+
+```{r}
+bibds_wos_por %>%
+  count(PY) %>%
+  ggplot(aes(x = PY, y = n)) + 
+  geom_col() + 
+  scale_x_continuous(breaks = seq(2000, 2030, 1), 
+                     name = "Year") + 
+  scale_y_continuous(breaks = seq(0, 50, 5), 
+                     name = "Number of Publication") +
+  theme_bw()
+```
+
+## Influential Articles
+
+### Total Cited
+
+```{r}
+bibds_wos_por %>% 
+  select(TI, AU, TC, DI) %>% 
+  arrange(desc(TC)) %>% 
+  mutate(Rank = row_number(), .before = 1) %>% 
+  filter(Rank < 11)
+```
+
+### Total Cited per Year
+
+```{r}
+bibds_wos_por %>% 
+  select(TI, AU, DI, PY, TC) %>% 
+  mutate(dur = 2024 - PY + 1,
+         tcy = TC / dur) %>% 
+  arrange(desc(tcy)) %>% 
+  mutate(Rank = row_number(), .before = 1) %>% 
+  filter(Rank < 11)
+```
+
+## Influential Authors
+
+```{r}
+bibds_wos_por %>% 
+  select(AU) %>% 
+  separate_longer_delim(AU, ";") %>% 
+  count(AU) %>% 
+  arrange(desc(n), AU) %>%
+  filter(n > 4) %>% 
+  mutate(Rank = row_number(), .before = 1)
+```
+
+## Influential Journals
+
+### Top Journals
+
+```{r}
+bibds_wos_por %>% 
+  count(SO) %>% 
+  arrange(desc(n), SO) %>% 
+  mutate(Rank = row_number(), .before = 1) %>% 
+  filter(n > 2) 
+```
+
+### Bradford's Law
+
+Bradford's law stated that, in a given subject area, a small number of journals account for a sizeable portion of the total publications in that area, whereas increasing numbers of journals publish fewer articles in that area.
+
+It can be group into 3 zone, with core zone is the smallest number of journals that account for the largest number of articles.
+
+```{r}
+bibds_wos_por %>% 
+  count(SO) %>% 
+  arrange(desc(n), SO) %>% 
+  mutate(sum_n = cumsum(n)) %>% 
+  mutate(Rank = row_number(), .before = 1) %>% 
+  filter(sum_n <= sum(n) / 3 + 1)
+```
+
+## Influential Keywords
+
+### Author's Keywords
+
+
+```{r}
+bibds_wos_por %>% 
+  select(DE) %>% 
+  separate_longer_delim(DE, ";") %>% 
+  count(DE) %>% 
+  arrange(desc(n), DE) %>% 
+  filter(n > 6) %>% 
+  mutate(Rank = row_number(), .before = 1)
+```
+
+
+### WOS Keywords
+
+```{r}
+bibds_wos_por %>% 
+  select(ID) %>%
+  separate_longer_delim(ID, ";") %>%
+  count(ID) %>%
+  arrange(desc(n), ID) %>% 
+  filter(n > 7) %>% 
+  mutate(Rank = row_number(), .before = 1)
+```
+
+# Conclusion
+
+-   The concept of Public Health Precision was quite recent, with the first publication in 2015.
+-   The publication was increasing in the first 4 years, but later fluctuate in the final 4 years.
+-   Several prominent authors, articles and journal were identified.
+-   The concept of Public Health Precision was still growing and there is increasing interest in the topic.
