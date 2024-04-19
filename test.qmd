@@ -35,10 +35,51 @@ dpi: 320
 pacman::p_load(tidyverse, bibliometrix, janitor, stringi, 
                gtsummary, kableExtra)
 
-
-bibds_wos <- convert2df("biblio.bib", dbsource = "wos", 
-                        format = "bibtex")
-
-
 ```
+
+# Import Database and Export 
+
+```{r}
+bibds_wos <- convert2df("240418_php.bib", dbsource = "wos", 
+                        format = "bibtex") %>% 
+  mutate(id = row_number(), 
+         .before = 1) %>% 
+  rowwise() %>%
+  mutate(idR = stri_rand_strings(1, 4), 
+         .after = id) %>% 
+  ungroup()
+
+#write_csv(bibds_wos, "bibds_wos.csv")
+```
+
+# Open Refine
+
+- import dataset (project name: 2024_BiblioIKU_03)
+- split AU 
+- cluster and edit AU
+- Join AU
+- split DE
+- cluster and edit DE
+- join DE
+- split SC
+- cluster and edit SC
+- join SC
+- export to bibds_wos_postor.csv
+
+# Import OpenRefine
+
+```{r}
+bibds_wos_por <- read_csv("bibds_wos_postor.csv")
+
+bibds_wos_por
+```
+
+# Bibliometrix
+
+```{r}
+biblioAnalysis(bibds_wos_por) %>% 
+  summary(k = 20)
+```
+
+
 
