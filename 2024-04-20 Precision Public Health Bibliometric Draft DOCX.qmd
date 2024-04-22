@@ -79,6 +79,20 @@ bibds_wos_por <- read_csv("240419_bibds_wos_postor.csv")
 
 # Results
 
+## Descriptive
+
+```{r}
+biblioAnalysis(bibds_wos_por) %>% 
+  summary(k=5)
+```
+
+```{r}
+bibds_wos_por %>% 
+  freq(DT)
+```
+
+
+
 ## Production by Year
 
 ```{r}
