@@ -43,6 +43,12 @@ bibds_wos_por <- read_csv("240419_bibds_wos_postor.csv")
 
 # Introduction
 
+-   Precision public health is a relatively new concept.
+-   Precision public health was coined following the trend of precision medicine.
+-   In precision medicine, treatment is tailored to individual patient, by utilising the advancement of genomic sequencing and molecular biology.
+-   Meanwhile, in precision public health, interventions are tailored to individual or group, by using data and technology.
+-   In this study, we want to map the landscape of precision public health, by identifying influential works and key contributors.
+
 # Methodology
 
 ## Data Source & Inclusion Criteria
@@ -154,7 +160,6 @@ bibds_wos_por %>%
 
 ### Author's Keywords
 
-
 ```{r}
 bibds_wos_por %>% 
   select(DE) %>% 
@@ -164,7 +169,6 @@ bibds_wos_por %>%
   filter(n > 6) %>% 
   mutate(Rank = row_number(), .before = 1)
 ```
-
 
 ### WOS Keywords
 
@@ -184,3 +188,9 @@ bibds_wos_por %>%
 -   The publication was increasing in the first 4 years, but later fluctuate in the final 4 years.
 -   Several prominent authors, articles and journal were identified.
 -   The concept of Public Health Precision was still growing and there is increasing interest in the topic.
+
+# References
+
+1.  Ramaswami, R., Bayer, R., & Galea, S. (2018). Precision Medicine from a Public Health Perspective. Annual review of public health, 39, 153–168. https://doi.org/10.1146/annurev-publhealth-040617-014158
+2.  Akhoon, Neha. “Precision Medicine: A New Paradigm in Therapeutics.” International journal of preventive medicine vol. 12 12. 24 Feb. 2021, doi:10.4103/ijpvm.IJPVM_375_19
+3.  Aria, M., & Cuccurullo, C. (2017). bibliometrix: An R-tool for comprehensive science mapping analysis. Journal of Informetrics, 11(4), 959-975. https://doi.org/10.1016/j.joi.2017.08.007
