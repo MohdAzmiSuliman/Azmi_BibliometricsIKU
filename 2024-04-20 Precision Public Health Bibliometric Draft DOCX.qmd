@@ -99,13 +99,18 @@ bibds_wos_por %>%
 bibds_wos_por %>%
   count(PY) %>%
   ggplot(aes(x = PY, y = n)) + 
-  geom_col() + 
+  geom_col(fill = "lavender", colour = "purple") + 
   scale_x_continuous(breaks = seq(2000, 2030, 1), 
                      name = "Year") + 
   scale_y_continuous(breaks = seq(0, 50, 5), 
                      name = "Number of Publication") +
   theme_bw()
 ```
+
+```{r}
+ggsave("production_by_year.png", width = 8*.75, height = 5*.8)
+```
+
 
 ## Influential Articles
 
