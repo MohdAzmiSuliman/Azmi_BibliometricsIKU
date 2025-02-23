@@ -31,7 +31,8 @@ dpi: 320
 ```{r}
 #| label: setup
 
-pacman::p_load(tidyverse, bibliometrix, janitor, stringi, summarytools)
+pacman::p_load(tidyverse, googledrive, bibliometrix, janitor, stringi, 
+               summarytools)
 ```
 
 # Import Database and Export
@@ -48,18 +49,43 @@ TITLE ( "pediatric" OR "paediatric" OR "childhood" OR "adolescent" OR "youth" ) 
 ## Import Database
 
 ```{r}
+# eval: false
+
+# file is large, save in onedrive
+
+# drive_auth()
+
+temp_file <- tempfile(fileext = ".csv")
+
+drive_download(as_id("1QmaaiDEPm2242yv3yK8n1NrmMtoBlDEA"), 
+               path = temp_file, overwrite = TRUE)
+
+pedob_bibds <- convert2df(temp_file, 
+                          dbsource = "scopus", 
+                          format = "csv", 
+                          remove.duplicates = TRUE)
+
+head(pedob_bibds)
+
+write_rds(pedob_bibds, "pedob_bibds.rds")
 ```
 
 
 ```{r}
-#| eval: false
-
-eldmln_ds <- convert2df("250218_ScopusSearch.csv", 
-           dbsource = "scopus", format = "csv") %>% 
-  distinct(TI, .keep_all = T)
-
-eldmln_ds %>% 
-  head()
-
-write_rds(eldmln_ds, "eldmln_ds.rds")
+pedob_bibds <- read_rds("pedob_bibds.rds")
 ```
+
+```{r}
+dupti <- pedob_bibds %>% 
+  count(TI, sort = T) %>% 
+  filter(n > 1) %>% 
+  pull(TI)
+
+pedob_bibds %>% 
+  arrange(TI, PY) %>% 
+  filter(TI %in% dupti) %>% 
+  mutate(ti_short = str_sub(TI, 1, 100), .before = 1)
+
+```
+
+
