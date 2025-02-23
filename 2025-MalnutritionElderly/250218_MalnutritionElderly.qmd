@@ -1,0 +1,580 @@
+---
+title: "2025 - Bibliometric Elderly Malnutrition"
+date: last-modified
+date-format: "dddd, DD/MM/YYYY"
+format: 
+  html:
+    theme: flatly
+    code-fold: true
+    code-copy: hover
+    code-overflow: wrap
+    code-tools: true
+    df-print: paged
+    default-image-extension: svg
+    embed-resources: true
+    page-layout: full
+    reference-location: margin
+    title-block-banner: true
+    title-block-style: default
+    fontsize: .9em
+    monofont: 'Fira Code'
+execute: 
+  warning: false
+number-sections: true
+toc: true
+fig-dpi: 320
+dpi: 320
+---
+
+# Setup
+
+```{r}
+#| label: setup
+
+pacman::p_load(tidyverse, bibliometrix, janitor, stringi, summarytools)
+```
+
+# Import Database and Export
+
+## Search Criteria
+
+- Database: Scopus
+- Date Access: 18/02/2025
+- Search Term: 
+
+TITLE-ABS-KEY ( ( "malnutrition" OR "undernutrition" OR "nutritional deficiency" OR "protein-energy malnutrition" OR "nutritional status" ) AND ( "elderly" OR "older adults" OR "aging population" OR "geriatric" OR "frail elderly" ) AND ( "nutrition intervention" OR "dietary intake" OR "sarcopenia" OR "frailty" OR "gut microbiota" OR "muscle loss" OR "health outcomes" ) ) AND PUBYEAR > 1994 AND PUBYEAR < 2025 AND ( LIMIT-TO ( DOCTYPE , "ar" ) ) AND ( LIMIT-TO ( SRCTYPE , "j" ) ) AND ( LIMIT-TO ( PUBSTAGE , "final" ) )
+
+
+## Import Database
+
+```{r}
+#| eval: false
+
+eldmln_ds <- convert2df("250218_ScopusSearch.csv", 
+           dbsource = "scopus", format = "csv") %>% 
+  distinct(TI, .keep_all = T)
+
+eldmln_ds %>% 
+  head()
+
+write_rds(eldmln_ds, "eldmln_ds.rds")
+```
+
+```{r}
+eldmln_ds <- read_rds("eldmln_ds.rds")
+```
+
+
+```{r}
+eldmln_ds %>% 
+  head()
+
+eldmln_ds %>% 
+  names()
+```
+
+Key Columns Names
+
+- AU : Authors
+- AF : Authors Full Name
+- Author.s..ID (KIV to rename)
+- SO : Source (i.e., Journal Name) 
+- DE : Author Keywords
+- ID : Scopus Keywords
+
+
+
+
+
+## Explore Dataset
+
+Duplicate Title
+
+```{r}
+dup_ti <- eldmln_ds %>% 
+  count(TI) %>% 
+  filter(n > 1) %>% 
+  pull(TI)
+
+eldmln_ds %>% 
+  filter(TI %in% dup_ti) %>% 
+  arrange(TI)
+```
+
+Author
+
+```{r}
+eldmln_ds %>%
+  mutate(author_count = stri_count_fixed(AF, ";") + 1) %>% 
+  filter(author_count == 1)
+```
+
+```{r}
+eldmln_ds %>% 
+  select(TI, AF) %>% 
+  separate(AF, into = paste0("af", 1:10), sep = ";", 
+           extra = "drop", fill = "right") %>% 
+  pivot_longer(cols = starts_with("af"), 
+               names_to = "author_position", 
+               values_to = "au_nameid") %>%
+  drop_na(au_nameid) %>% 
+  mutate(
+    au_nameid = str_trim(au_nameid),  # Trim whitespace
+    au_nameid = if_else(str_detect(au_nameid, "\\(.+\\)"), au_nameid, paste0(au_nameid, " (NA)")), # Handle missing Scopus IDs
+    au_name = str_extract(au_nameid, "^[^(]+") %>% str_trim(), # Extract name before "("
+    au_scid = str_extract(au_nameid, "(?<=\\().+?(?=\\))") # Extract Scopus ID inside "()"
+  ) %>% 
+  distinct(au_name, au_scid)  %>%
+  group_by(au_name) %>%
+  filter(n_distinct(au_scid) > 1) %>%
+  arrange(au_name, au_scid) %>%
+  ungroup()
+```
+
+```{r}
+eldmln_ds %>% 
+  select(TI, AF) %>% 
+  separate(AF, into = paste0("af", 1:10), sep = ";", 
+           extra = "drop", fill = "right") %>% 
+  pivot_longer(cols = starts_with("af"), 
+               names_to = "author_position", 
+               values_to = "au_nameid") %>%
+  drop_na(au_nameid) %>% 
+  mutate(
+    au_nameid = str_trim(au_nameid),  # Trim whitespace
+    au_nameid = if_else(str_detect(au_nameid, "\\(.+\\)"), au_nameid, paste0(au_nameid, " (NA)")), # Handle missing Scopus IDs
+    au_name = str_extract(au_nameid, "^[^(]+") %>% str_trim(), # Extract name before "("
+    au_scid = str_extract(au_nameid, "(?<=\\().+?(?=\\))") # Extract Scopus ID inside "()"
+  ) %>% 
+  distinct(au_name, au_scid)  %>%
+  group_by(au_scid) %>%
+  filter(n_distinct(au_name) > 1) %>%
+  arrange(au_scid, au_name) %>%
+  ungroup()
+```
+
+Year
+
+```{r}
+eldmln_ds %>% 
+  count(PY)
+```
+
+Document Type
+
+```{r}
+eldmln_ds %>% 
+  count(DT)
+```
+
+
+
+# Analysis
+
+## Bibliometric Summary
+
+```{r}
+#| eval: false
+
+eldmln_bibres <- biblioAnalysis(eldmln_ds, sep = ";") 
+
+write_rds(eldmln_bibres, "eldmln_bibres.rds")
+```
+
+```{r}
+eldmln_bibres <- read_rds("eldmln_bibres.rds")
+```
+
+
+```{r}
+summary(eldmln_bibres)
+```
+
+## Production 
+
+### Summary
+
+```{r}
+eldmln_ds %>% 
+  count(PY) %>% 
+  mutate(Gap = case_when(
+    PY %in% 1995:2004 ~ "1995-2004", 
+    PY %in% 2005:2014 ~ "2005-2014", 
+    PY %in% 2015:2024 ~ "2015-2024"
+  )) %>% 
+  group_by(Gap) %>% 
+  summarise(n = sum(n), .groups = "drop") %>% 
+  bind_rows(., 
+            summarise(., Gap = "1995-2024 (total)", n = sum(n)))
+```
+
+
+### Trend
+
+30 years
+
+```{r}
+gm_agr_9524 <- eldmln_ds %>% 
+  count(PY) %>%
+  mutate(AGR = (n - lag(n)) / lag(n) * 100) %>% 
+  filter(!is.na(AGR)) %>% 
+  summarise(geom_mean_agr = (exp(mean(log(1 + AGR / 100))) - 1) * 100) %>% 
+  pull(geom_mean_agr)
+
+gm_agr_9524
+```
+
+1995 - 2004
+
+```{r}
+gm_agr_9504 <- eldmln_ds %>% 
+  count(PY) %>% 
+  filter(PY %in% 1995:2004) %>% 
+  mutate(AGR = (n - lag(n)) / lag(n) * 100) %>% 
+  filter(!is.na(AGR)) %>% 
+  summarise(geom_mean_agr = (exp(mean(log(1 + AGR / 100))) - 1) * 100) %>% 
+  pull(geom_mean_agr)
+
+gm_agr_9504
+```
+
+2005 - 2014
+
+```{r}
+gm_agr_0514 <- eldmln_ds %>% 
+  count(PY) %>% 
+  filter(PY %in% 2005:2014) %>% 
+  mutate(AGR = (n - lag(n)) / lag(n) * 100) %>% 
+  filter(!is.na(AGR)) %>% 
+  summarise(geom_mean_agr = (exp(mean(log(1 + AGR / 100))) - 1) * 100) %>% 
+  pull(geom_mean_agr)
+
+gm_agr_0514
+```
+
+2015 - 2024
+
+```{r}
+gm_agr_1524 <- eldmln_ds %>% 
+  count(PY) %>% 
+  filter(PY %in% 2015:2024) %>% 
+  mutate(AGR = (n - lag(n)) / lag(n) * 100) %>% 
+  filter(!is.na(AGR)) %>% 
+  summarise(geom_mean_agr = (exp(mean(log(1 + AGR / 100))) - 1) * 100) %>% 
+  pull(geom_mean_agr)
+
+gm_agr_1524
+```
+
+
+```{r}
+#4682B4 steelblue
+#CD5C5C indianred
+#2E8B57 seagreen
+
+eldmln_ds %>%
+  count(PY) %>% 
+  ggplot(aes(x = PY, y = n)) +
+  geom_vline(xintercept = c(2004, 2014), 
+             linetype = "dashed", color = "#CD5C5C") +  # Indian Red
+  geom_col(fill = "#4682B4", color = "black") + # steelblue
+  annotate("text", x = 2006, y = 600, 
+           label = paste0("1995-2024 AGR = ", 
+                          sprintf("%.1f", gm_agr_9524), "%"), 
+           color = "black", hjust = 0, size = 3) +  # 1995-2024
+  annotate("text", x = 1996, y = 100, 
+           label = paste0("1995-2004 AGR = ", 
+                          sprintf("%.1f", gm_agr_9504), "%"), 
+           color = "black", hjust = 0, size = 3) +  # 1995-2004
+  annotate("text", x = 2006, y = 200, 
+           label = paste0("2005-2014 AGR = ", 
+                          sprintf("%.1f", gm_agr_0514), "%"), 
+           color = "black", hjust = 0, size = 3) +  # 2005-2014
+  annotate("text", x = 2016, y = 550, 
+           label = paste0("2015-2024 AGR = ", 
+                          sprintf("%.1f", gm_agr_1524), "%"), 
+           color = "black", hjust = 0, size = 3) +  # 2015-2024
+  scale_x_continuous(breaks = seq(1989, 2029, 5)) +
+  scale_y_continuous(breaks = seq(0, 600, 100)) + 
+  coord_cartesian(ylim = c(0, 620)) +
+  labs(title = "Annual Publication Count",
+       x = "Publication Year",
+       y = "Number of Publications") +
+  theme_bw()
+```
+
+
+## Journal
+
+### Summary
+
+```{r}
+eldmln_ds %>% 
+  summarise(total_unique_journals = n_distinct(SO))
+```
+
+```{r}
+eldmln_ds %>% 
+  count(SO, sort = TRUE) %>% 
+  slice_max(n, n = 10)
+```
+
+### Trend
+
+```{r}
+eldmln_ds %>% 
+  filter(PY %in% 1995:2004) %>% 
+  count(SO, sort = TRUE) %>% 
+  slice_max(n, n = 5)
+```
+
+```{r}
+eldmln_ds %>% 
+  filter(PY %in% 2005:2014) %>% 
+  count(SO, sort = TRUE) %>% 
+  slice_max(n, n = 5)
+```
+
+```{r}
+eldmln_ds %>% 
+  filter(PY %in% 2015:2024) %>% 
+  count(SO, sort = TRUE) %>% 
+  slice_max(n, n = 5)
+```
+
+
+## Author
+
+
+```{r}
+oriau_byti0 <- eldmln_ds %>% 
+  select(TI, PY, AF) %>% 
+  separate_wider_delim(AF, delim = ";", names = paste0("af", 1:10), 
+                       too_many = "drop", too_few = "align_start") %>% 
+  pivot_longer(cols = starts_with("af"), 
+               names_to = "author_position", 
+               values_to = "au_nameid", values_drop_na = TRUE) %>% 
+  mutate(au_nameid = str_trim(au_nameid),  
+         au_name = str_extract(au_nameid, "^[^(]+"), 
+         au_name = str_trim(au_name), 
+         au_name = str_to_upper(au_name), 
+         au_name = stri_trans_general(au_name, "Latin-ASCII"), 
+         au_name = str_replace_all(au_name, "-", " "), 
+         au_name = str_replace_all(au_name, ",", " "), 
+         au_name = str_replace_all(au_name, "\\.", " "), 
+         au_name = str_trim(au_name), 
+         au_name = str_replace_all(au_name, "\\s+", " "), 
+         au_scid = str_extract(au_nameid, "(?<=\\().+?(?=\\))")) %>% 
+  arrange(au_scid)
+
+oriau_byti0
+
+# Step 1: Standardized Name by Scopus ID (Preferring Longer Names)
+stdname_list1 <- oriau_byti0 %>% 
+  arrange(au_scid, desc(nchar(au_name)), PY, author_position) %>%  # Prefer longer names first
+  group_by(au_scid) %>%
+  summarise(std_name = first(au_name), .groups = "drop") %>% 
+  arrange(desc(au_scid))  # Descending order by Scopus ID
+
+# Step 2: Merge Standardized Name Back
+oriau_byti1 <- oriau_byti0 %>% 
+  left_join(stdname_list1, by = "au_scid")
+
+# Step 3: Standardized Scopus ID by Standardized Name (Preferring Longer Names)
+stdscid_list1 <- oriau_byti1 %>% 
+  arrange(desc(nchar(std_name)), PY, author_position) %>%  # Prefer longer names
+  group_by(std_name) %>% 
+  summarise(std_scid = first(au_scid), .groups = "drop") %>% 
+  arrange(desc(std_name))  # Descending order by name
+
+# Step 4: Final Merge - Add Standardized Scopus IDs Back
+oriau_byti2 <- oriau_byti1 %>% 
+  left_join(stdscid_list1, by = "std_name")
+
+oriau_byti2
+```
+
+
+```{r}
+# Check for inconsistencies
+
+oriau_byti2 %>% 
+  count(std_name, std_scid) %>% 
+  count(std_name) %>% filter(n > 1)
+
+oriau_byti2 %>% 
+  count(std_name, std_scid) %>% 
+  count(std_scid) %>% filter(n > 1)
+
+oriau_byti2 %>% 
+  filter(str_detect(std_name, regex("bald", ignore_case = TRUE)))
+
+oriau_byti2 %>% 
+  filter(str_detect(std_name, regex("bulu", ignore_case = TRUE)))
+
+oriau_byti2 %>% 
+  filter(au_name != std_name) %>% 
+  arrange(std_name)
+```
+
+### Summary
+
+```{r}
+oriau_byti2 %>% 
+  summarise(total_authors = n(), 
+            unique_authors = n_distinct(std_name))
+```
+
+
+### Trend
+
+```{r}
+oriau_byti2 %>% 
+  count(std_name, sort = T) %>% 
+  slice_head(n = 5)
+```
+
+```{r}
+oriau_byti2 %>% 
+  filter(PY %in% 1995:2004) %>% 
+  count(std_name, sort = T) %>% 
+  slice_head(n = 5)
+```
+
+```{r}
+oriau_byti2 %>% 
+  filter(PY %in% 2005:2014) %>% 
+  count(std_name, sort = T) %>% 
+  slice_head(n = 5)
+```
+
+```{r}
+oriau_byti2 %>% 
+  filter(PY %in% 2015:2024) %>% 
+  count(std_name, sort = T) %>% 
+  slice_head(n = 5)
+```
+
+## Keyword
+
+### Author Keywords
+
+```{r}
+eldmln_ds %>% 
+  mutate(keyword_count = str_count(DE, ";") + 1) %>% 
+  count(keyword_count)
+```
+
+
+```{r}
+#4682B4 steelblue
+#CD5C5C indianred
+#2E8B57 seagreen
+
+eldmln_ds %>% 
+  mutate(keyword_count = str_count(DE, ";") + 1) %>% 
+  count(keyword_count) %>% 
+  ggplot(aes(x = keyword_count, y = n)) + 
+  geom_col(fill = "#4682B4", color = "black") + # steelblue
+  scale_x_continuous(breaks = seq(1, 21, 1)) + 
+  scale_y_continuous(breaks = seq(0, 2000, 200)) + 
+  coord_cartesian(xlim = c(1, 15)) + # there are papers with DE > 15!
+  labs(title = "Number of Author's Keyword per Articles", 
+       x = "Author's Keywords Count", 
+       y = "Number of Publications") +
+  theme_bw()
+```
+
+
+```{r}
+debyti <- eldmln_ds %>% 
+  select(TI, PY, DE) %>% 
+  separate_wider_delim(DE, delim = ";", names = paste0("de", 1:10), 
+                       too_many = "drop", too_few = "align_start") %>% 
+  pivot_longer(cols = starts_with("de"), 
+               names_to = "de_position", 
+               values_to = "de_aukw", 
+               values_drop_na = T) %>% 
+  mutate(de_aukw = str_trim(de_aukw), 
+         de_aukw = str_to_upper(de_aukw), 
+         de_aukw = str_replace_all(de_aukw, "\\s+", " "), 
+         de_aukw = str_replace_all(de_aukw, "-", " "), 
+         de_aukw = stri_trans_general(de_aukw, "Latin-ASCII") )
+
+debyti
+```
+
+```{r}
+debyti %>% 
+  count(de_aukw, sort = T)
+```
+
+### chatgpt fuzzy matching
+
+```{r}
+#| eval: false
+
+library(stringdist)
+
+# Create a list of unique keywords
+keywords <- unique(debyti$de_aukw)
+
+# Compute pairwise distances
+keyword_dist <- stringdistmatrix(keywords, keywords, method = "lv")  # Levenshtein distance
+
+# Convert to a tibble for easier filtering
+keyword_pairs <- as_tibble(expand.grid(keyword1 = keywords, keyword2 = keywords)) %>%
+  mutate(distance = as.vector(keyword_dist)) %>%
+  filter(keyword1 != keyword2, distance <= 2)  # Set threshold for similarity
+
+keyword_pairs
+
+keyword_pairs %>% 
+  count(keyword2)
+```
+
+
+```{r}
+#| eval: false
+
+library(quanteda)
+library(cluster)
+library(dplyr)
+
+# Create a document-feature matrix (DFM) with tokenized keywords
+dfm_keywords <- dfm(tokens(debyti$de_aukw), tolower = TRUE)
+
+# Convert DFM to a TF-IDF matrix
+dfm_tfidf <- dfm_tfidf(dfm_keywords)  # Correct function for TF-IDF transformation
+
+# Convert to a dense matrix for clustering
+tfidf_matrix <- convert(dfm_tfidf, to = "matrix")
+
+# Compute distance matrix
+dist_matrix <- dist(tfidf_matrix)
+
+# Apply hierarchical clustering
+keyword_clusters <- hclust(dist_matrix)
+
+# Cut tree into 50 clusters (adjust as needed)
+debyti$keyword_cluster <- cutree(keyword_clusters, k = 50)
+
+# Assign a standard keyword per cluster
+cluster_mapping <- debyti %>%
+  group_by(keyword_cluster) %>%
+  summarise(std_keyword = first(de_aukw), .groups = "drop")
+
+# Merge standard keywords back into debyti
+debyti2 <- debyti %>%
+  left_join(cluster_mapping, by = "keyword_cluster") %>%
+  mutate(de_aukw = coalesce(std_keyword, de_aukw)) %>%
+  select(-std_keyword, -keyword_cluster)
+
+# View updated dataset
+head(debyti2)
+
+
+
+
+```
+
