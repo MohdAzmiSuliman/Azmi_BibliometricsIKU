@@ -49,18 +49,9 @@ TITLE ( "pediatric" OR "paediatric" OR "childhood" OR "adolescent" OR "youth" ) 
 ## Import Database
 
 ```{r}
-# eval: false
+#| eval: false
 
-# file is large, save in onedrive
-
-# drive_auth()
-
-temp_file <- tempfile(fileext = ".csv")
-
-drive_download(as_id("1QmaaiDEPm2242yv3yK8n1NrmMtoBlDEA"), 
-               path = temp_file, overwrite = TRUE)
-
-pedob_bibds <- convert2df(temp_file, 
+pedob_bibds <- convert2df("250223_ScopusSearch.csv", 
                           dbsource = "scopus", 
                           format = "csv", 
                           remove.duplicates = TRUE)
@@ -75,6 +66,8 @@ write_rds(pedob_bibds, "pedob_bibds.rds")
 pedob_bibds <- read_rds("pedob_bibds.rds")
 ```
 
+## Explore
+
 ```{r}
 dupti <- pedob_bibds %>% 
   count(TI, sort = T) %>% 
@@ -88,4 +81,347 @@ pedob_bibds %>%
 
 ```
 
+there was however several with same title.
+
+
+```{r}
+pedob_bibds %>% 
+  count(PY)
+```
+
+```{r}
+pedob_bibds %>% 
+  count(DT)
+```
+
+# Analysis
+
+## Summary
+
+```{r}
+#| eval: false
+
+pedob_bibres <- biblioAnalysis(pedob_bibds, sep = ";")
+
+write_rds(pedob_bibres, "pedob_bibres.rds")
+```
+
+```{r}
+pedob_bibres <- read_rds("pedob_bibres.rds")
+
+summary(pedob_bibres)
+```
+
+## Production
+
+### Summary
+
+```{r}
+pedob_bibds %>% 
+  count(PY) %>% 
+  mutate(Gap = case_when(
+    PY %in% 1994:2003 ~ "1994-2003", 
+    PY %in% 2004:2013 ~ "2004-2013", 
+    PY %in% 2014:2023 ~ "2014-2023"
+  )) %>% 
+  group_by(Gap) %>% 
+  summarise(n = sum(n), .groups = "drop") %>% 
+  bind_rows(., 
+            summarise(., Gap = "1994-2023 (total)", n = sum(n)))
+```
+
+### Trend
+
+```{r}
+gmagr_9423 <- pedob_bibds %>% 
+  count(PY)  %>%
+  mutate(AGR = (n - lag(n)) / lag(n) * 100) %>% 
+  filter(!is.na(AGR)) %>% 
+  summarise(geommean_agr = (exp(mean(log(1 + AGR / 100))) - 1) * 100) %>% 
+  pull(geommean_agr)
+
+gmagr_9423
+```
+
+```{r}
+gmagr_9403 <- pedob_bibds %>% 
+  count(PY)  %>% 
+  filter(PY %in% 1994:2003) %>% 
+  mutate(AGR = (n - lag(n)) / lag(n) * 100) %>% 
+  filter(!is.na(AGR)) %>% 
+  summarise(geommean_agr = (exp(mean(log(1 + AGR / 100))) - 1) * 100) %>% 
+  pull(geommean_agr)
+
+gmagr_9403
+```
+
+```{r}
+gmagr_0413 <- pedob_bibds %>% 
+  count(PY)  %>% 
+  filter(PY %in% 2004:2013) %>% 
+  mutate(AGR = (n - lag(n)) / lag(n) * 100) %>% 
+  filter(!is.na(AGR)) %>% 
+  summarise(geommean_agr = (exp(mean(log(1 + AGR / 100))) - 1) * 100) %>% 
+  pull(geommean_agr)
+
+gmagr_0413
+```
+
+```{r}
+gmagr_1423 <- pedob_bibds %>% 
+  count(PY)  %>% 
+  filter(PY %in% 2014:2023) %>% 
+  mutate(AGR = (n - lag(n)) / lag(n) * 100) %>% 
+  filter(!is.na(AGR)) %>% 
+  summarise(geommean_agr = (exp(mean(log(1 + AGR / 100))) - 1) * 100) %>% 
+  pull(geommean_agr)
+
+gmagr_1423
+```
+
+```{r}
+#4682B4 steelblue
+#CD5C5C indianred
+#2E8B57 seagreen
+
+pedob_bibds %>% 
+  count(PY) %>% 
+  ggplot(aes(x = PY, y = n)) + 
+  geom_vline(xintercept = c(2003, 2013), 
+             linetype = "dashed", colour = "indianred") + #CD5C5C
+  geom_col(fill = "seagreen", colour = "black") + #2E8B57
+  annotate("text", x = 2005, y = 1000, 
+           label = paste0("1994-2023 AGR = ", 
+                          sprintf("%.1f", gmagr_9423), "%"), 
+           color = "black", hjust = 0, size = 3) +  # 1994-2023
+  annotate("text", x = 1995, y = 200, 
+           label = paste0("1994-2003 AGR = ", 
+                          sprintf("%.1f", gmagr_9403), "%"), 
+           color = "black", hjust = 0, size = 3) +  # 1994-2003
+  annotate("text", x = 2005, y = 800, 
+           label = paste0("2004-2013 AGR = ", 
+                          sprintf("%.1f", gmagr_0413), "%"), 
+           color = "black", hjust = 0, size = 3) +  # 2004-2013
+  annotate("text", x = 2015, y = 900, 
+           label = paste0("2014-2023 AGR = ", 
+                          sprintf("%.1f", gmagr_1423), "%"), 
+           color = "black", hjust = 0, size = 3) +  # 2014-2023
+  scale_x_continuous(breaks = seq(1988, 2030, 5)) +
+  scale_y_continuous(breaks = seq(0, 1100, 100)) + 
+  coord_cartesian(ylim = c(0, 1050)) +
+  labs(title = "Annual Publication Count",
+       x = "Publication Year",
+       y = "Number of Publications") +
+  theme_bw()
+
+```
+
+## Journal
+
+### Summary
+
+```{r}
+pedob_bibds %>% 
+  summarise(total_unique_journals = n_distinct(SO))
+```
+
+```{r}
+pedob_bibds %>% 
+  count(SO, sort = T) %>% 
+  slice_max(n, n = 20) %>% 
+  mutate(rank = row_number(), .before = 1)
+```
+
+### Trend
+
+```{r}
+pedob_bibds %>% 
+  filter(PY %in% 1994:2003) %>% 
+  count(SO, sort = TRUE) %>% 
+  slice_max(n, n = 10) %>% 
+  mutate(rank = row_number(), .before = 1)
+```
+
+```{r}
+pedob_bibds %>% 
+  filter(PY %in% 2004:2013) %>% 
+  count(SO, sort = TRUE) %>% 
+  slice_max(n, n = 10) %>% 
+  mutate(rank = row_number(), .before = 1)
+```
+
+```{r}
+pedob_bibds %>% 
+  filter(PY %in% 2014:2023) %>% 
+  count(SO, sort = TRUE) %>% 
+  slice_max(n, n = 10) %>% 
+  mutate(rank = row_number(), .before = 1)
+```
+
+## Author
+
+```{r}
+oriau_byti0 <- pedob_bibds %>% 
+  select(TI, PY, AF) %>% 
+  separate_wider_delim(AF, delim = ";", names = paste0("af", 1:10), 
+                       too_many = "drop", too_few = "align_start") %>% 
+  pivot_longer(cols = starts_with("af"), 
+               names_to = "author_position", 
+               values_to = "au_nameid", values_drop_na = TRUE) %>% 
+  mutate(au_nameid = str_trim(au_nameid),  
+         au_name = str_extract(au_nameid, "^[^(]+"), 
+         au_name = str_trim(au_name), 
+         au_name = str_to_upper(au_name), 
+         au_name = stri_trans_general(au_name, "Latin-ASCII"), 
+         au_name = str_replace_all(au_name, "-", " "), 
+         au_name = str_replace_all(au_name, ",", " "), 
+         au_name = str_replace_all(au_name, "\\.", " "), 
+         au_name = str_trim(au_name), 
+         au_name = str_replace_all(au_name, "\\s+", " "), 
+         au_scid = str_extract(au_nameid, "(?<=\\().+?(?=\\))")) %>% 
+  arrange(au_scid)
+
+oriau_byti0
+```
+
+```{r}
+# Step 1: Standardized Name by Scopus ID (Preferring Longer Names)
+stdname_list1 <- oriau_byti0 %>% 
+  arrange(au_scid, desc(nchar(au_name)), PY, author_position) %>%  # Prefer longer names first
+  group_by(au_scid) %>%
+  summarise(std_name = first(au_name), .groups = "drop") %>% 
+  arrange(desc(au_scid))  # Descending order by Scopus ID
+
+# Step 2: Merge Standardized Name Back
+oriau_byti1 <- oriau_byti0 %>% 
+  left_join(stdname_list1, by = "au_scid")
+
+# Step 3: Standardized Scopus ID by Standardized Name (Preferring Longer Names)
+stdscid_list1 <- oriau_byti1 %>% 
+  arrange(desc(nchar(std_name)), PY, author_position) %>%  # Prefer longer names
+  group_by(std_name) %>% 
+  summarise(std_scid = first(au_scid), .groups = "drop") %>% 
+  arrange(desc(std_name))  # Descending order by name
+
+# Step 4: Final Merge - Add Standardized Scopus IDs Back
+oriau_byti2 <- oriau_byti1 %>% 
+  left_join(stdscid_list1, by = "std_name")
+
+oriau_byti2
+```
+
+```{r}
+# Check for inconsistencies
+
+oriau_byti2 %>% 
+  count(std_name, std_scid) %>% 
+  count(std_name) %>% filter(n > 1)
+
+oriau_byti2 %>% 
+  count(std_name, std_scid) %>% 
+  count(std_scid) %>% filter(n > 1)
+```
+
+### Summary
+
+
+```{r}
+oriau_byti2 %>% 
+  count(std_name, sort = T) %>% 
+  slice_head(n = 10) %>% 
+  mutate(rank = row_number(), .before = 1)
+```
+
+```{r}
+oriau_byti2 %>% 
+  filter(PY %in% 1994:2003) %>% 
+  count(std_name, sort = T) %>% 
+  slice_head(n = 10) %>% 
+  mutate(rank = row_number(), .before = 1)
+```
+
+```{r}
+oriau_byti2 %>% 
+  filter(PY %in% 2004:2013) %>% 
+  count(std_name, sort = T) %>% 
+  slice_head(n = 10) %>% 
+  mutate(rank = row_number(), .before = 1)
+```
+
+```{r}
+oriau_byti2 %>% 
+  filter(PY %in% 2014:2023) %>% 
+  count(std_name, sort = T) %>% 
+  slice_head(n = 10) %>% 
+  mutate(rank = row_number(), .before = 1)
+```
+
+
+## Keywords
+
+### Summary
+
+```{r}
+pedob_bibds %>% 
+  mutate(keyword_count = str_count(DE, ";") + 1) %>% 
+  count(keyword_count)
+```
+
+```{r}
+#4682B4 steelblue
+#CD5C5C indianred
+#2E8B57 seagreen
+
+pedob_bibds %>% 
+  mutate(keyword_count = str_count(DE, ";") + 1) %>% 
+  count(keyword_count) %>% 
+  ggplot(aes(x = keyword_count, y = n)) + 
+  geom_col(fill = "#2E8B57", color = "black") + # seagreen
+  scale_x_continuous(breaks = seq(1, 21, 1)) + 
+  scale_y_continuous(breaks = seq(0, 5000, 500)) + 
+  coord_cartesian(xlim = c(1, 11)) + # there are papers with DE > 15!
+  labs(title = "Number of Author's Keyword per Articles", 
+       x = "Author's Keywords Count", 
+       y = "Number of Publications") +
+  theme_bw()
+```
+
+```{r}
+debyti <- pedob_bibds %>% 
+  select(TI, PY, DE) %>% 
+  separate_wider_delim(DE, delim = ";", names = paste0("de", 1:10), 
+                       too_many = "drop", too_few = "align_start") %>% 
+  pivot_longer(cols = starts_with("de"), 
+               names_to = "de_position", 
+               values_to = "de_aukw", 
+               values_drop_na = T) %>% 
+  mutate(de_aukw = str_trim(de_aukw), 
+         de_aukw = str_to_upper(de_aukw), 
+         de_aukw = str_replace_all(de_aukw, "\\s+", " "), 
+         de_aukw = str_replace_all(de_aukw, "-", " "), 
+         de_aukw = stri_trans_general(de_aukw, "Latin-ASCII") )
+
+debyti
+```
+
+```{r}
+debyti %>% 
+  count(de_aukw, sort = T) 
+```
+
+### Trend
+
+```{r}
+debyti %>% 
+  filter(PY %in% 1994:2003) %>% 
+  count(de_aukw, sort = T) 
+
+debyti %>% 
+  filter(PY %in% 2004:2013) %>% 
+  count(de_aukw, sort = T) 
+
+debyti %>% 
+  filter(PY %in% 2014:2023) %>% 
+  count(de_aukw, sort = T) 
+```
 
