@@ -187,32 +187,33 @@ gmagr_1423
 pedob_bibds %>% 
   count(PY) %>% 
   ggplot(aes(x = PY, y = n)) + 
-  geom_vline(xintercept = c(2003, 2013), 
+  geom_vline(xintercept = c(2003.5, 2013.5), 
              linetype = "dashed", colour = "indianred") + #CD5C5C
   geom_col(fill = "seagreen", colour = "black") + #2E8B57
-  annotate("text", x = 2005, y = 1000, 
+  annotate("text", x = 2005, y = 1050, 
            label = paste0("1994-2023 AGR = ", 
                           sprintf("%.1f", gmagr_9423), "%"), 
            color = "black", hjust = 0, size = 3) +  # 1994-2023
-  annotate("text", x = 1995, y = 200, 
+  annotate("text", x = 1995, y = 150, 
            label = paste0("1994-2003 AGR = ", 
                           sprintf("%.1f", gmagr_9403), "%"), 
            color = "black", hjust = 0, size = 3) +  # 1994-2003
-  annotate("text", x = 2005, y = 800, 
+  annotate("text", x = 2005, y = 850, 
            label = paste0("2004-2013 AGR = ", 
                           sprintf("%.1f", gmagr_0413), "%"), 
            color = "black", hjust = 0, size = 3) +  # 2004-2013
-  annotate("text", x = 2015, y = 900, 
+  annotate("text", x = 2015, y = 950, 
            label = paste0("2014-2023 AGR = ", 
                           sprintf("%.1f", gmagr_1423), "%"), 
            color = "black", hjust = 0, size = 3) +  # 2014-2023
-  scale_x_continuous(breaks = seq(1988, 2030, 5)) +
+  scale_x_continuous(breaks = seq(1986, 2030, 4)) +
   scale_y_continuous(breaks = seq(0, 1100, 100)) + 
   coord_cartesian(ylim = c(0, 1050)) +
-  labs(title = "Annual Publication Count",
-       x = "Publication Year",
+  labs(x = "Publication Year",
        y = "Number of Publications") +
   theme_bw()
+
+ggsave("production plot.png")
 
 ```
 
@@ -328,32 +329,99 @@ oriau_byti2 %>%
 ```{r}
 oriau_byti2 %>% 
   count(std_name, sort = T) %>% 
-  slice_head(n = 10) %>% 
+  slice_head(n = 20) %>% 
   mutate(rank = row_number(), .before = 1)
 ```
 
 ```{r}
-oriau_byti2 %>% 
+topau_9403 <- oriau_byti2 %>% 
   filter(PY %in% 1994:2003) %>% 
   count(std_name, sort = T) %>% 
   slice_head(n = 10) %>% 
   mutate(rank = row_number(), .before = 1)
+
+topau_9403
+
+topau_9403_8list <- topau_9403 %>% 
+  head(n = 8) %>% 
+  pull(std_name)
+
+oriau_byti2 %>% 
+  filter(std_name %in% topau_9403_8list) %>% 
+  arrange(desc(PY)) %>% 
+  distinct(std_name, .keep_all = T) %>% 
+  mutate(short_name = str_sub(std_name, 1, 10), 
+         short_ti = str_sub(TI, 1, 40)) %>% 
+  select(short_name, short_ti, std_name, TI)
 ```
 
 ```{r}
-oriau_byti2 %>% 
+topau_0413 <- oriau_byti2 %>% 
   filter(PY %in% 2004:2013) %>% 
   count(std_name, sort = T) %>% 
   slice_head(n = 10) %>% 
   mutate(rank = row_number(), .before = 1)
+
+topau_0413
+
+topau_0413_5list <- topau_0413 %>% 
+  head(n = 5) %>% 
+  pull(std_name)
+
+oriau_byti2 %>% 
+  filter(std_name %in% topau_0413_5list) %>% 
+  arrange(desc(PY)) %>% 
+  distinct(std_name, .keep_all = T) %>% 
+  mutate(short_name = str_sub(std_name, 1, 10), 
+         short_ti = str_sub(TI, 1, 40)) %>% 
+  select(short_name, short_ti, std_name, TI)
 ```
 
 ```{r}
-oriau_byti2 %>% 
+topau_1423 <- oriau_byti2 %>% 
   filter(PY %in% 2014:2023) %>% 
   count(std_name, sort = T) %>% 
   slice_head(n = 10) %>% 
   mutate(rank = row_number(), .before = 1)
+
+topau_1423
+
+topau_1423_5list <- topau_1423 %>% 
+  head(n = 5) %>% 
+  pull(std_name)
+
+oriau_byti2 %>% 
+  filter(std_name %in% topau_1423_5list) %>% 
+  arrange(desc(PY)) %>% 
+  distinct(std_name, .keep_all = T) %>% 
+  mutate(short_name = str_sub(std_name, 1, 10), 
+         short_ti = str_sub(TI, 1, 40)) %>% 
+  select(short_name, short_ti, std_name, TI)
+```
+
+```{r}
+topau_9403_15 <- oriau_byti2 %>% 
+  filter(PY %in% 1994:2003) %>% 
+  count(std_name, sort = T) %>% 
+  slice_head(n = 15) %>% 
+  mutate(rank = row_number(), .before = 1)
+
+topau_0413_15 <- oriau_byti2 %>% 
+  filter(PY %in% 2004:2013) %>% 
+  count(std_name, sort = T) %>% 
+  slice_head(n = 15) %>% 
+  mutate(rank = row_number(), .before = 1)
+
+topau_1423_15 <- oriau_byti2 %>% 
+  filter(PY %in% 2014:2023) %>% 
+  count(std_name, sort = T) %>% 
+  slice_head(n = 15) %>% 
+  mutate(rank = row_number(), .before = 1)
+
+topau_9403_15 %>% 
+  left_join(topau_0413_15, by = "rank") %>% 
+  left_join(topau_1423_15, by = "rank") #%>% 
+  #writexl::write_xlsx("top15author.xlsx")
 ```
 
 
