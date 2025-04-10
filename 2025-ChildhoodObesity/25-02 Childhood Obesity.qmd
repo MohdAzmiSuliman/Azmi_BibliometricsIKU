@@ -190,19 +190,19 @@ pedob_bibds %>%
   geom_vline(xintercept = c(2003.5, 2013.5), 
              linetype = "dashed", colour = "indianred") + #CD5C5C
   geom_col(fill = "seagreen", colour = "black") + #2E8B57
-  annotate("text", x = 2005, y = 1050, 
-           label = paste0("1994-2023 AGR = ", 
-                          sprintf("%.1f", gmagr_9423), "%"), 
-           color = "black", hjust = 0, size = 3) +  # 1994-2023
-  annotate("text", x = 1995, y = 150, 
+  # annotate("text", x = 2005, y = 1050, 
+  #          label = paste0("1994-2023 AGR = ", 
+  #                         sprintf("%.1f", gmagr_9423), "%"), 
+  #          color = "black", hjust = 0, size = 3) +  # 1994-2023
+  annotate("text", x = 1995, y = 975, 
            label = paste0("1994-2003 AGR = ", 
                           sprintf("%.1f", gmagr_9403), "%"), 
            color = "black", hjust = 0, size = 3) +  # 1994-2003
-  annotate("text", x = 2005, y = 850, 
+  annotate("text", x = 2005, y = 975, 
            label = paste0("2004-2013 AGR = ", 
                           sprintf("%.1f", gmagr_0413), "%"), 
            color = "black", hjust = 0, size = 3) +  # 2004-2013
-  annotate("text", x = 2015, y = 950, 
+  annotate("text", x = 2015, y = 975, 
            label = paste0("2014-2023 AGR = ", 
                           sprintf("%.1f", gmagr_1423), "%"), 
            color = "black", hjust = 0, size = 3) +  # 2014-2023
@@ -213,7 +213,7 @@ pedob_bibds %>%
        y = "Number of Publications") +
   theme_bw()
 
-ggsave("production plot.png")
+ggsave("production plot new.png", scale = .45, width = 15, height = 8)
 
 ```
 
@@ -328,7 +328,7 @@ oriau_byti2 %>%
 ```{r}
 oriau_byti2 %>% 
   count(std_name) %>% 
-  summarise(total_au = sum(n))
+  summarise(total_au = sum(!is.na(std_name)))
 ```
 
 
