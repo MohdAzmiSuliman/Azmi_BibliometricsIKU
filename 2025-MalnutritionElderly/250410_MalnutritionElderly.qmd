@@ -1,0 +1,107 @@
+---
+title: "2025 - Bibliometric Elderly Malnutrition"
+date: last-modified
+date-format: "dddd, DD/MM/YYYY"
+format: 
+  html:
+    theme: flatly
+    code-fold: show
+    code-copy: hover
+    code-overflow: wrap
+    code-tools: true
+    df-print: paged
+    default-image-extension: svg
+    embed-resources: true
+    page-layout: full
+    reference-location: margin
+    title-block-banner: true
+    title-block-style: default
+    fontsize: .9em
+    monofont: 'Fira Code'
+execute: 
+  warning: false
+number-sections: true
+toc: true
+fig-dpi: 320
+dpi: 320
+---
+
+# Setup
+
+```{r}
+pacman::p_load(tidyverse, bibliometrix, janitor, stringi, summarytools)
+```
+
+# Dataset
+
+## Search Criteria
+
+- Database: Web of Science
+- Date: 08/04/2025
+- Timespan: 1994-2023
+- Type: Articles, Not Proceeding Paper, Book Chapter, Retracted Publication, Early Access, Withdrawn Publication
+- Search Term:  
+
+TI=("malnutrit*" OR "malnourish*" OR "poor nutrition" OR "undernutrit*" OR "nutrition* deficien*" OR "nutrition* status" OR "nutrition* disorder*" OR "micronutrient deficien*" OR "nutrition* health")  
+AND  
+TI=("elder*" OR "older adult*" OR "older person*" OR "older people*" OR "ageing" OR "geriatric*" OR "senior citizen*" OR "senior*")
+
+Note: WOS unable to save more than 1000 records, thus require combine. combine using biblioshiny
+
+## Load Dataset
+
+```{r}
+#| eval: false
+
+biblioshiny()
+```
+
+
+```{r}
+load("2025-04-08_ElderlyMalnutrition_Combine.RData")
+
+eldmln_ds <- M %>% 
+  filter(PY < 2024)
+
+rm(M)
+```
+
+## Exploration
+
+```{r}
+dupti <- eldmln_ds %>% 
+  count(TI, sort = T) %>% 
+  filter(n > 1) %>% 
+  pull(TI)
+
+eldmln_ds %>% 
+  arrange(TI, PY) %>% 
+  filter(TI %in% dupti) %>% 
+  mutate(ti_short = str_sub(TI, 1, 100), .before = 1)
+```
+
+```{r}
+eldmln_ds %>% 
+  count(PY)
+
+eldmln_ds %>% 
+  count(DT)
+```
+
+# Analysis
+
+## Summary
+
+```{r}
+eldmln_bibres <- biblioAnalysis(eldmln_ds, sep = ";")
+
+summary(eldmln_bibres)
+```
+
+# Authors
+
+```{r}
+eldmln_ds %>% 
+  select(TI, PY, AF)
+```
+
