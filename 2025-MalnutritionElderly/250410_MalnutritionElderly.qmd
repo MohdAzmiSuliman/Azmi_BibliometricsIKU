@@ -29,6 +29,8 @@ dpi: 320
 # Setup
 
 ```{r}
+#| label: setup
+
 pacman::p_load(tidyverse, bibliometrix, janitor, stringi, summarytools)
 ```
 
@@ -103,5 +105,71 @@ summary(eldmln_bibres)
 ```{r}
 eldmln_ds %>% 
   select(TI, PY, AF)
+```
+
+# Additional
+
+```{r}
+autime <- readxl::read_xlsx(
+  "additional after shiny/AuthorProdTime_19942023.xlsx", 
+  range = "A2:E127") %>% 
+  group_by(Author, year) %>% 
+  summarise(freq = sum(freq), 
+            TC = sum(TC), 
+            .groups = "drop")
+
+autime
+
+autime_wide <- autime %>% 
+  select(-TC) %>% 
+  arrange(year) %>% 
+  pivot_wider(names_from = year, 
+              values_from = freq, 
+              values_fill = 0)
+
+autime_wide
+```
+
+```{r}
+# Step 1: Pivot to long format
+autime_long <- autime_wide %>%
+  pivot_longer(
+    cols = -Author,
+    names_to = "year",
+    values_to = "freq"
+  ) %>%
+  mutate(
+    year = as.integer(year),
+    freq = as.integer(freq)
+  )
+
+# Step 2: Optional — reorder authors by total productivity
+autime_long <- autime_long %>%
+  group_by(Author) %>%
+  mutate(total = sum(freq)) %>%
+  ungroup() %>%
+  mutate(Author = fct_reorder(Author, total))
+
+# Step 3: Draw heatmap
+ggplot(autime_long, aes(x = year, y = Author, fill = freq)) +
+  geom_tile(color = "white") +
+  scale_fill_gradientn(
+    colours = c("white", "green", "red"),
+    values = scales::rescale(c(0, 1, max(autime_long$freq))),
+    name = "Publications"
+  ) + 
+  geom_vline(xintercept = c(2003.5, 2013.5), colour = "red") +
+  labs(
+    x = "Year",
+    y = "Author",
+    title = "Heatmap of Author Publications by Year"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.y = element_text(size = 8),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid = element_blank()
+  )
+
 ```
 
